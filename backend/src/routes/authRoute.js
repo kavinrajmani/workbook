@@ -10,6 +10,15 @@ const generateToken = (id) => {
     });
 }
 
+const setUserTokenCookie = (user, res) => {
+    const token = generateToken(user._id);
+    res.cookie("CID", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+    });
+};
+
 authRouter.post("/register", async (req, res) => {
     try {
         const { name, email, password } = req.body;
@@ -55,15 +64,11 @@ authRouter.post("/register", async (req, res) => {
 
         // Generate token
         const token = generateToken(newUser._id);
-        res.cookie("CID", token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "strict",
-        });
-
+        // Set cookie
+        setUserTokenCookie(newUser, res);
         res.status(201).json({
             message: "User registered successfully", user: {
-                _id: newUser._id,
+                id: newUser._id,
                 name: newUser.name,
                 email: newUser.email,
                 profilePicture: newUser.profilePicture,
@@ -94,11 +99,7 @@ authRouter.post("/login", async (req, res) => {
         }
         // Generate token
         const token = generateToken(user._id);
-        res.cookie("CID", token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "strict",
-        });
+        setUserTokenCookie(newUser, res);
         res.status(200).json({
             message: "Login successful", user: {
                 id: user._id,
