@@ -10,8 +10,7 @@ const generateToken = (id) => {
     });
 }
 
-const setUserTokenCookie = (user, res) => {
-    const token = generateToken(user._id);
+const setUserTokenCookie = (token, res) => {
     res.cookie("CID", token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
@@ -19,29 +18,33 @@ const setUserTokenCookie = (user, res) => {
     });
 };
 
-authRouter.post("/register", async (req, res) => {
+const regInputValidation = (req, res, next) => {
+    // Validate input
+    if (!name || !email || !password) {
+        return res.status(400).json({ message: "Please fill all fields" });
+    }
+
+    //check name length
+    if (name.length < 3 || name.length > 20) {
+        return res.status(400).json({ message: "Name must be between 3 and 20 characters" });
+    }
+
+    // Check if email is valid
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        return res.status(400).json({ message: "Invalid email format" });
+    }
+
+    //check password length
+    if (password.length < 6 || password.length > 20) {
+        return res.status(400).json({ message: "Password must be between 6 and 20 characters" });
+    }
+    next();
+}
+
+authRouter.post("/register", regInputValidation, async (req, res) => {
     try {
         const { name, email, password } = req.body;
-        // Validate input
-        if (!name || !email || !password) {
-            return res.status(400).json({ message: "Please fill all fields" });
-        }
-
-        //check name length
-        if (name.length < 3 || name.length > 20) {
-            return res.status(400).json({ message: "Name must be between 3 and 20 characters" });
-        }
-
-        // Check if email is valid
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            return res.status(400).json({ message: "Invalid email format" });
-        }
-
-        //check password length
-        if (password.length < 6 || password.length > 20) {
-            return res.status(400).json({ message: "Password must be between 6 and 20 characters" });
-        }
 
         // Check if user already exists
         const existingUser = await User.findOne({ $or: [{ email }, { name }] });
@@ -65,7 +68,7 @@ authRouter.post("/register", async (req, res) => {
         // Generate token
         const token = generateToken(newUser._id);
         // Set cookie
-        setUserTokenCookie(newUser, res);
+        setUserTokenCookie(token, res);
         res.status(201).json({
             message: "User registered successfully", user: {
                 id: newUser._id,
@@ -80,13 +83,23 @@ authRouter.post("/register", async (req, res) => {
     }
 });
 
-authRouter.post("/login", async (req, res) => {
+const inputValidation = (req, res, next) => {
+    const { email, password } = req.body;
+    // Validate input
+    if (!email || !password) {
+        return res.status(400).json({ message: "Please fill all fields" });
+    }
+    // Check if email is valid
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        return res.status(400).json({ message: "Invalid email format" });
+    }
+    next();
+}
+
+authRouter.post("/login", inputValidation, async (req, res) => {
     try {
         const { email, password } = req.body;
-        // Validate input
-        if (!email || !password) {
-            return res.status(400).json({ message: "Please fill all fields" });
-        }
         // Check if user exists
         const user = await User.findOne({ email });
         if (!user) {
@@ -99,7 +112,7 @@ authRouter.post("/login", async (req, res) => {
         }
         // Generate token
         const token = generateToken(user._id);
-        setUserTokenCookie(newUser, res);
+        setUserTokenCookie(token, res);
         res.status(200).json({
             message: "Login successful", user: {
                 id: user._id,
