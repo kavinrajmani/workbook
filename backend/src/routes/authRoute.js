@@ -1,6 +1,7 @@
 import { Router } from "express";
 import jwt from "jsonwebtoken";
 import User from "../models/user.js";
+import { inputValidation, regInputValidation } from "../middleware/authMiddleware.js";
 
 const authRouter = Router();
 
@@ -18,29 +19,9 @@ const setUserTokenCookie = (token, res) => {
     });
 };
 
-const regInputValidation = (req, res, next) => {
-    // Validate input
-    if (!name || !email || !password) {
-        return res.status(400).json({ message: "Please fill all fields" });
-    }
-
-    //check name length
-    if (name.length < 3 || name.length > 20) {
-        return res.status(400).json({ message: "Name must be between 3 and 20 characters" });
-    }
-
-    // Check if email is valid
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-        return res.status(400).json({ message: "Invalid email format" });
-    }
-
-    //check password length
-    if (password.length < 6 || password.length > 20) {
-        return res.status(400).json({ message: "Password must be between 6 and 20 characters" });
-    }
-    next();
-}
+const setUserTokenHeader = (token, res) => {
+    res.setHeader("Authorization", `Bearer ${token}`);
+};
 
 authRouter.post("/register", regInputValidation, async (req, res) => {
     try {
@@ -67,6 +48,8 @@ authRouter.post("/register", regInputValidation, async (req, res) => {
 
         // Generate token
         const token = generateToken(newUser._id);
+        // Set token in header
+        setUserTokenHeader(token, res);
         // Set cookie
         setUserTokenCookie(token, res);
         res.status(201).json({
@@ -83,20 +66,6 @@ authRouter.post("/register", regInputValidation, async (req, res) => {
     }
 });
 
-const inputValidation = (req, res, next) => {
-    const { email, password } = req.body;
-    // Validate input
-    if (!email || !password) {
-        return res.status(400).json({ message: "Please fill all fields" });
-    }
-    // Check if email is valid
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-        return res.status(400).json({ message: "Invalid email format" });
-    }
-    next();
-}
-
 authRouter.post("/login", inputValidation, async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -112,6 +81,9 @@ authRouter.post("/login", inputValidation, async (req, res) => {
         }
         // Generate token
         const token = generateToken(user._id);
+        // Set token in header
+        setUserTokenHeader(token, res);
+        // Set cookie
         setUserTokenCookie(token, res);
         res.status(200).json({
             message: "Login successful", user: {
